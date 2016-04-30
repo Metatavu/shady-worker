@@ -1,0 +1,16 @@
+{
+  "name": "shady-worker",
+  "description": "Shady Business worker",
+  "version": "0.0.1",
+  "contributors": [ ],
+  "dependencies": {
+    "express": "4.13.4",
+    "websocket": "1.0.22",
+    "uuid4": "1.0.0",
+    "underscore": "1.8.3",
+    "yargs": "4.6.0",
+    "pidusage": "1.0.1",
+    "shady-messages": "0.0.2"
+  },
+  "readmeFilename": "README.md"
+}
