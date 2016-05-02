@@ -141,10 +141,7 @@
     _createWebSocket: function () {
       var port = window.location.port;
       var host = window.location.hostname;
-      
       var url = 'ws://' + host + ':' + port + '/ws';
-      
-      console.log(url);
       
       if ((typeof window.WebSocket) !== 'undefined') {
         return new WebSocket(url);
@@ -162,6 +159,8 @@
     
     _onWebSocketOpen: function (event) {
       this._connected = true;
+      
+      // this._sendMessage('system:reindex-places', {});
     },
     
     _onWebSocketMessage: function (event) {
@@ -172,7 +171,7 @@
       }
     },
     
-    _onPlacesNear: function (data) {
+    _onPlacesNear: function (event, data) {
       var places = data.places;
       
       var newPlaces = _.filter(places, $.proxy(function (place) {

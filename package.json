@@ -1,7 +1,7 @@
 {
   "name": "shady-worker",
   "description": "Shady Business worker",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "contributors": [ ],
   "dependencies": {
     "express": "4.13.4",
@@ -10,7 +10,12 @@
     "underscore": "1.8.3",
     "yargs": "4.6.0",
     "pidusage": "1.0.1",
-    "shady-messages": "0.0.2"
+    "async": "2.0.0-rc.3",
+    "geolib": "2.0.20",
+    "shady-messages": "latest",
+    "shady-model": "latest",
+    "shady-search": "latest",
+    "shady-database": "latest"
   },
   "readmeFilename": "README.md"
 }

@@ -6,25 +6,27 @@
   var express = require('express');
   var uuid = require('uuid4');
   var pidusage = require('pidusage');
+  var geolib = require('geolib');
   
   var ShadyMessages = require('shady-messages');
-  var WebSocketServer = require('websocket').server;
+  var WebSockets = require(__dirname + '/websockets');
+  var Places = require(__dirname + '/places/places.js');
   
   var shadyMessages = new ShadyMessages();
   var app = express();
   var workerId = uuid();
-  var clients = 0;
+  var places = new Places();
   
   var argv = require('yargs')
     .usage('Start Shady worker \nUsage: $0')
-    .demand('p')
-    .alias('p', 'port')
-    .describe('p', 'Port')
+	.demand('p')
+	.alias('p', 'port')
+	.describe('p', 'Port')
     .demand('h')
     .alias('h', 'host')
     .describe('h', 'Host')
-    .argv;
-	
+	.argv;
+  
   var port = argv.port;
   var host = argv.host;
   
@@ -33,35 +35,9 @@
   httpServer.listen(port, function() {
     console.log('Server is listening on port ' + port);
   });
-   
+  
   app.use(express.static(__dirname + '/public'));
-    
-  var wsServer = new WebSocketServer({
-    httpServer: httpServer
-  });
   
-  wsServer.on('connection', function (webSocket) {
-    console.log("connection");
-    var url = webSocket.upgradeReq.url;
-  });
-  
-  wsServer.on('request', function(request) {
-    var connection = request.accept();
-    console.log((new Date()) + ' Connection accepted.');
-    connection.on('message', function(message) {
-        if (message.type === 'utf8') {
-            console.log('Received Message: ' + message.utf8Data);
-            connection.sendUTF(message.utf8Data);
-        }
-        else if (message.type === 'binary') {
-            console.log('Received Binary Message of ' + message.binaryData.length + ' bytes');
-            connection.sendBytes(message.binaryData);
-        }
-    });
-    connection.on('close', function(reasonCode, description) {
-        console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.');
-    });
-});
   setInterval(function () {
     pidusage.stat(process.pid, function(err, stat) {
       shadyMessages.trigger("cluster:ping", {
@@ -73,6 +49,28 @@
       });
 	});
   }, 1000);
+  
+  var webSockets = new WebSockets(httpServer);
+  
+  webSockets.on("player:screen-move", function (connection, data) {
+    var center = geolib.getCenter([
+      data.topLeft,
+      data.bottomRight
+    ]);
+      
+    places.search(center.latitude, center.longitude, function (err, places) {
+      if (err) {
+        // todo: handle err
+        console.error(err);
+      } else {
+        webSockets.sendMessage(connection, "places:near", { places: places });
+      }
+    });
+  });
+  
+  webSockets.on("system:reindex-places", function (connection, data) {
+    shadyMessages.trigger("system:reindex-places", { });
+  });
   
   console.log(util.format("Worker started at %s:%d", host, port));
   
