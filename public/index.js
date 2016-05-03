@@ -2,7 +2,7 @@
   'use strict';
   
   /* global window, document, WebSocket, MozWebSocket, $, _, L, navigator, geolib: true */
-
+  
   $.widget("custom.map", {
     options: {
       followInterval: 1,
@@ -110,9 +110,22 @@
   }); 
   
   $.widget("custom.client", {
+    options: {
+      reconnectTimeout: 3000
+    },
     _create : function() {
-      this._connected = false;
+      this._state = 'CLOSED';
       this._knownPlaceIds = [];
+      this._pendingMessages = [];
+      
+      this._connect();
+      
+      this.element.on('places:near', $.proxy(this._onPlacesNear, this));
+      $(document).on("mapLocationChange", $.proxy(this._onMapLocationChange, this));
+    },
+    
+    _connect: function () {
+      this._state = 'CONNECTING';
       
       this._webSocket = this._createWebSocket();
       if (!this._webSocket) {
@@ -128,16 +141,35 @@
           this._onWebSocketOpen();
         break;
         default:
-          // TODO: Handle error
+          this._reconnect();
         break;
       }
       
       this._webSocket.onmessage = $.proxy(this._onWebSocketMessage, this);
-      
-      this.element.on('places:near', $.proxy(this._onPlacesNear, this));
-      $(document).on("mapLocationChange", $.proxy(this._onMapLocationChange, this));
+      this._webSocket.onclose = $.proxy(this._onWebSocketClose, this);
+      this._webSocket.onerror = $.proxy(this._onWebSocketError, this);
     },
     
+    _reconnect: function () {
+      console.log("Reconnecting...");
+
+      if (this._reconnectTimeout) {
+        clearTimeout(this._reconnectTimeout);
+      }
+      
+      if (!this._webSocket || this._webSocket.readyState !== this._webSocket.CONNECTING) {
+        this._connect();
+      }
+      
+      this._reconnectTimeout = setTimeout($.proxy(function () {
+        console.log("timeout socket state: " + this._webSocket.readyState);
+        
+        if (this._webSocket.readyState === this._webSocket.CLOSED) {
+          this._reconnect();
+        }
+      }, this), this.options.reconnectTimeout);
+    },
+
     _createWebSocket: function () {
       var port = window.location.port;
       var host = window.location.hostname;
@@ -151,15 +183,29 @@
     },
     
     _sendMessage: function (type, data) {
-      this._webSocket.send(JSON.stringify({
-        type: type,
-        data: data
-      }));
+      if (this._state === 'CONNECTED') {
+        this._webSocket.send(JSON.stringify({
+          type: type,
+          data: data
+        }));
+      } else {
+        this._pendingMessages.push({
+          type: type,
+          data: data
+        });
+      }
     },
     
     _onWebSocketOpen: function (event) {
-      this._connected = true;
+      console.log("Connected");
       
+      while (this._pendingMessages.length) {
+        var pendingMessage = this._pendingMessages.shift();
+        this._sendMessage(pendingMessage.type, pendingMessage.data);
+      }
+      
+      this._state = 'CONNECTED';
+
       // this._sendMessage('system:reindex-places', {});
     },
     
@@ -169,6 +215,16 @@
       if (message && message.type) {
         this.element.trigger(message.type, message.data); 
       }
+    },
+    
+    _onWebSocketClose: function (event) {
+      console.log("Socket closed");
+      this._reconnect();
+    },
+    
+    _onWebSocketError: function (event) {
+      console.log("Socket error");
+      this._reconnect();
     },
     
     _onPlacesNear: function (event, data) {
