@@ -1,21 +1,26 @@
 (function() {
   'use strict';
   
+  var _ = require("underscore");
   var http = require('http');
   var util = require('util');
   var express = require('express');
+  var morgan = require('morgan');
+  var bodyParser = require('body-parser');
   var uuid = require('uuid4');
   var pidusage = require('pidusage');
-  var geolib = require('geolib');
   
   var ShadyMessages = require('shady-messages');
   var WebSockets = require(__dirname + '/websockets');
+  var Sessions = require(__dirname + '/sessions');
   var Places = require(__dirname + '/places/places.js');
-  
+  var GeoUtils = require(__dirname + '/geoutils');
+    
   var shadyMessages = new ShadyMessages();
   var app = express();
   var workerId = uuid();
   var places = new Places();
+  var sessions = new Sessions();
   
   var argv = require('yargs')
     .usage('Start Shady worker \nUsage: $0')
@@ -36,7 +41,26 @@
     console.log('Server is listening on port ' + port);
   });
   
+  app.use(morgan('combined'));
   app.use(express.static(__dirname + '/public'));
+  app.use(bodyParser.urlencoded({ extended: true }));
+  
+  app.post('/rest/sessions/', function (req, res) {
+   var id = req.body.id;
+   var longitude = parseFloat(req.body.longitude);
+   var latitude = parseFloat(req.body.latitude);
+   
+    sessions.create(id, latitude, longitude, function (err, sessionId) {
+      if (err) {
+        res.send(500, err);
+      } else {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.status(200).send(JSON.stringify({
+          sessionId: sessionId
+        }));
+      }
+    });
+  });
   
   setInterval(function () {
     pidusage.stat(process.pid, function(err, stat) {
@@ -52,18 +76,45 @@
   
   var webSockets = new WebSockets(httpServer);
   
-  webSockets.on("player:screen-move", function (connection, data) {
-    var center = geolib.getCenter([
-      data.topLeft,
-      data.bottomRight
-    ]);
-      
-    places.search(center.latitude, center.longitude, function (err, places) {
+  webSockets.on("player:screen-move", function (data) {
+    var sessionId = data.sessionId;
+    var client = data.client;
+  
+    sessions.get(sessionId, function (err, session) {
       if (err) {
-        // todo: handle err
         console.error(err);
       } else {
-        webSockets.sendMessage(connection, "places:near", { places: places });
+        var currentLocation = GeoUtils.center(data.topLeft, data.bottomRight);
+        var user = session.user;
+        var bearing = null;
+        var speed = null;
+        var now = new Date().getTime();
+        
+        if (user.lastSeenAt) {
+          bearing = GeoUtils.bearingTo(user.lastSeenAt, currentLocation);
+          speed = GeoUtils.speed(user.lastSeenAt, user.lastSeen, currentLocation, now);
+        }
+
+        places.search(currentLocation.latitude, currentLocation.longitude, function (err, places) {
+	      if (err) {
+	        console.error(err);
+	      } else {
+	        client.sendMessage("places:near", { places: places });
+	      }
+	    });
+	    
+        sessions.update(sessionId, { 
+          user: _.extend(user, {
+            lastSeen: now,
+            lastSeenAt: currentLocation,
+            bearing: bearing,
+            speed: speed
+          })
+        }, function (updateErr) {
+          if (updateErr) {
+            console.error(updateErr);
+          }
+        });
       }
     });
   });

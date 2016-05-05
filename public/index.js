@@ -46,6 +46,10 @@
       if (!this._current || this._getDistance(current, this._current) > this.options.followInterval) {
         this._current = current;
         this._map.setView([current.latitude, current.longitude], this.options.zoom);
+        $(document).trigger("geoLocationChange", {
+          latitude: current.latitude,
+          longitude: current.longitude
+        });
       }
     },
     
@@ -111,23 +115,25 @@
   
   $.widget("custom.client", {
     options: {
-      reconnectTimeout: 3000
+      reconnectTimeout: 3000,
+      clientId: null
     },
     _create : function() {
-      this._state = 'CLOSED';
+      this._state = 'WAITING_LOCATION';
       this._knownPlaceIds = [];
       this._pendingMessages = [];
-      
-      this._connect();
+      this._restClient = new $.RestClient('/rest/');
+      this._restClient.add('sessions'); 
       
       this.element.on('places:near', $.proxy(this._onPlacesNear, this));
       $(document).on("mapLocationChange", $.proxy(this._onMapLocationChange, this));
+      $(document).on("geoLocationChange", $.proxy(this._onGeoLocationChange, this));
     },
     
-    _connect: function () {
+    _connect: function (sessionId) {
       this._state = 'CONNECTING';
       
-      this._webSocket = this._createWebSocket();
+      this._webSocket = this._createWebSocket(sessionId);
       if (!this._webSocket) {
         // Handle error  
         return;
@@ -170,10 +176,10 @@
       }, this), this.options.reconnectTimeout);
     },
 
-    _createWebSocket: function () {
+    _createWebSocket: function (sessionId) {
       var port = window.location.port;
       var host = window.location.hostname;
-      var url = 'ws://' + host + ':' + port + '/ws';
+      var url = 'ws://' + host + ':' + port + '/' + sessionId;
       
       if ((typeof window.WebSocket) !== 'undefined') {
         return new WebSocket(url);
@@ -196,17 +202,42 @@
       }
     },
     
+    _restCall: function (request, callback) {
+      request
+        .done(function (result) {
+          callback(null, result);
+        })
+        .fail(function (jqXHR, textStatus, errorThrown) {
+          if ((textStatus === "abort") || (jqXHR.status === 0)) {
+            return;
+          }
+          
+          callback(textStatus ? jqXHR.responseText || jqXHR.statusText || textStatus : null, jqXHR);
+        })
+    },
+    
+    _createSession: function (latitude, longitude, callback) {
+      this._restCall(this._restClient.sessions.create({
+        latitude: latitude,
+        longitude: longitude
+      }), callback);
+    },
+    
+    _reindexPlaces: function () {
+      this._sendMessage('system:reindex-places', {});
+    },
+    
     _onWebSocketOpen: function (event) {
-      console.log("Connected");
-      
       while (this._pendingMessages.length) {
         var pendingMessage = this._pendingMessages.shift();
-        this._sendMessage(pendingMessage.type, pendingMessage.data);
+        this._webSocket.send(JSON.stringify({
+          type: pendingMessage.type,
+          data: pendingMessage.data
+        }));
       }
       
       this._state = 'CONNECTED';
-
-      // this._sendMessage('system:reindex-places', {});
+      console.log("Connected");
     },
     
     _onWebSocketMessage: function (event) {
@@ -246,12 +277,32 @@
         topLeft: data.topLeft,
         bottomRight: data.bottomRight
       });
+    },
+    
+    _onGeoLocationChange: function (event, data) {
+      if (this._state == 'WAITING_LOCATION') {
+        this._createSession(data.latitude, data.longitude, function (err, data) {
+          if (err) {
+            console.error(err);
+          } else {
+            this._connect(data.sessionId);
+          }
+        }.bind(this));
+        
+      } else {
+        this._sendMessage('player:move', {
+          latitude: data.latitude,
+          longitude: data.longitude
+        });
+      }
     }
   });
   
   $(document).ready(function () {
     $('#map').map();
-    $(document.body).client();
+    $(document.body).client({
+      userId: 'something-made-up'
+    });
   });
   
 }).call(this);
