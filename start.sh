@@ -32,7 +32,7 @@ while [[ "$KEY" != "q" ]]; do
   if [[ "$KEY" == 'n' ]]; then
     let WORKER_COUNT=WORKER_COUNT+1 
     let PORT=PORT+1
-    node app.js --host localhost --port $PORT &> /dev/null &
+    node app.js --host localhost --port $PORT >> logs/worker.log &
   else
     if [[ $KEY -le $WORKER_COUNT ]]; then
       I=1
