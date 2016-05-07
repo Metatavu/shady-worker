@@ -1,22 +1,18 @@
+/*jshint esversion: 6 */
+
 (function() {
   'use strict';
   
   var _ = require("underscore");
   var async = require("async");
   var Search = require("shady-search");
-  var Database = require('shady-database');
-  var config = require(__dirname + '/../config.json');
   
   class Places {
     
-    constructor() {
-      this._database = new Database({
-        cassandraContactPoints: config.cassandraContactPoints,
-        cassandraKeyspace: config.cassandraKeyspace
-      });
-      
+    constructor(model, options) {
+      this._model = model;
       this._search = new Search({
-        elasticSearchHost: config.elasticSearchHost
+        elasticSearchHost: options.elasticSearchHost
       });
     }
     
@@ -27,9 +23,9 @@
         } else {
           if (response && response.hits) {
             var ids = _.pluck(response.hits.hits, '_id');
-            this._database.Places.load(ids, function (err, places) {
+            this._model.Place.listByIds(ids, function (err, places) {
               callback(err, places);
-            });
+            }.bind(this));
           } else {
             callback(null, []);
           }
@@ -51,7 +47,7 @@
       }.bind(this));
     }
     
-  };
+  }
   
   module.exports = Places;
 

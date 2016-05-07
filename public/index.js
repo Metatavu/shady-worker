@@ -26,14 +26,9 @@
     
     _onDiscoveredPlaces: function (event, data) {
       $.each(data.places, $.proxy(function (index, place) {
-        if (place.categories.length) {
-          var marker = L.marker([place.location.latitude, place.location.longitude], {
-            icon: L.icon({
-              iconUrl: place.categories[0].icon
-            }),
-            title: place.name
-          }).addTo(this._map);
-        }
+        var marker = L.marker([place.latitude, place.longitude], {
+          title: place.name
+        }).addTo(this._map);
       }, this));
     },
     
@@ -213,11 +208,12 @@
           }
           
           callback(textStatus ? jqXHR.responseText || jqXHR.statusText || textStatus : null, jqXHR);
-        })
+        });
     },
     
     _createSession: function (latitude, longitude, callback) {
       this._restCall(this._restClient.sessions.create({
+        id: this.options.userId,
         latitude: latitude,
         longitude: longitude
       }), callback);
@@ -280,7 +276,7 @@
     },
     
     _onGeoLocationChange: function (event, data) {
-      if (this._state == 'WAITING_LOCATION') {
+      if (this._state === 'WAITING_LOCATION') {
         this._createSession(data.latitude, data.longitude, function (err, data) {
           if (err) {
             console.error(err);
@@ -288,7 +284,6 @@
             this._connect(data.sessionId);
           }
         }.bind(this));
-        
       } else {
         this._sendMessage('player:move', {
           latitude: data.latitude,
@@ -301,7 +296,7 @@
   $(document).ready(function () {
     $('#map').map();
     $(document.body).client({
-      userId: 'something-made-up'
+      userId: '1ef96285-6f3b-472d-bd5a-873f02167625'
     });
   });
   
