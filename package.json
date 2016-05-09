@@ -1,7 +1,7 @@
 {
   "name": "shady-worker",
   "description": "Shady Business worker",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "contributors": [],
   "dependencies": {
     "async": "2.0.0-rc.3",

@@ -6,11 +6,11 @@
   var _ = require("underscore");
   var async = require("async");
   var Search = require("shady-search");
+  var ShadyModel = require('shady-model');
   
   class Places {
     
-    constructor(model, options) {
-      this._model = model;
+    constructor(options) {
       this._search = new Search({
         elasticSearchHost: options.elasticSearchHost
       });
@@ -23,8 +23,8 @@
         } else {
           if (response && response.hits) {
             var ids = _.pluck(response.hits.hits, '_id');
-            this._model.Place.listByIds(ids, function (err, places) {
-              callback(err, places);
+            ShadyModel.Place.find({ id : { '$in': ids }}, function (loadErr, places) {
+              callback(loadErr, places);
             }.bind(this));
           } else {
             callback(null, []);

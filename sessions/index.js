@@ -7,12 +7,11 @@
   var util = require('util');
   var redis = require("redis");
   var uuid = require('uuid4');
-  var model = require('shady-model');
+  var ShadyModel = require('shady-model');
   
   class Sessions {
   
-    constructor (model) {
-      this._model = model;
+    constructor () {
       this._redisClient = new redis.createClient();
     }
     
@@ -44,17 +43,22 @@
     }
     
     _findOrCreateUser(id, callback) {
-      this._model.User.findById(id, function (findErr, user) {
+      var UserModel = ShadyModel.User;
+
+      UserModel.findOne({id: id}, function(findErr, user){
         if (findErr) {
           callback(findErr);
         } else {
           if (!user) {
-            (new this._model.User(null, "Fakey McFakeyface")).save(callback);
+            (new UserModel({
+              id: id,
+              displayName: "Fakey McFakeyface"
+            })).save(callback);
           } else {
             callback(null, user);
           }
         }
-      }.bind(this));
+      });
     }
     
     get (sessionId, callback) {
