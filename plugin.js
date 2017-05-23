@@ -7,21 +7,11 @@
   const util = require('util');
   const uuid = require('uuid4');
   const pidusage = require('pidusage');
-  const architect = require('architect');
-  const options = require(__dirname + '/options');
-  const shadyMessages = require('shady-messages').getInstance();
   
-  if (!options.isOk()) {
-    options.printUsage();
-    process.exitCode = 1;
-    return;
-  }
-  
-  const architectConfig = architect.loadConfig(__dirname + '/config.js');
-  
-  architect.createApp(architectConfig, (err, app) => {
+  module.exports = function setup(options, imports, register) {
+    const shadyMessages = imports['shady-messages'];
     const workerId = uuid();
-  
+
     setInterval(() => {
       pidusage.stat(process.pid, (err, stat) => {
         shadyMessages.trigger("cluster:ping", {
@@ -33,6 +23,10 @@
         });
       });
     }, 1000);
-  });
-
+    
+    register(null, {
+      "shady-worker": workerId
+    });
+  };
+  
 })();
