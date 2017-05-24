@@ -2,6 +2,7 @@
   "name": "shady-worker",
   "description": "Shady Business worker",
   "version": "0.0.3",
+  "main": "plugin.js",
   "contributors": [],
   "dependencies": {
     "lodash": "^4.17.4",

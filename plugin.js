@@ -10,22 +10,27 @@
   
   module.exports = function setup(options, imports, register) {
     const shadyMessages = imports['shady-messages'];
-    const workerId = uuid();
-
-    setInterval(() => {
-      pidusage.stat(process.pid, (err, stat) => {
-        shadyMessages.trigger("cluster:ping", {
-          workerId: workerId,
-          cpu: stat.cpu,
-          memory: stat.memory,
-          port: options.getOption('port'),
-          host: options.getOption('host')
-        });
-      });
-    }, 1000);
     
     register(null, {
-      "shady-worker": workerId
+      "shady-worker": {
+        "start": (port, host) => {
+          const workerId = uuid();
+
+          setInterval(() => {
+            pidusage.stat(process.pid, (err, stat) => {
+              shadyMessages.trigger("cluster:ping", {
+                workerId: workerId,
+                cpu: stat.cpu,
+                memory: stat.memory,
+                port: port || options['port'],
+                host: host || options['host']
+              });
+            });
+          }, 1000);
+ 
+          return workerId;
+        }
+      }
     });
   };
   
