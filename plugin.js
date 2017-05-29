@@ -10,20 +10,29 @@
   
   module.exports = function setup(options, imports, register) {
     const shadyMessages = imports['shady-messages'];
+    const logger = imports['logger'];
     
     register(null, {
       "shady-worker": {
-        "start": (port, host) => {
+        "start": (serverGroup, port, host) => {
           const workerId = uuid();
-
+          const workerPort = port || options['port'];
+          const workerHost = host || options['host'];
+          const workerServerGroup = serverGroup || 'default';
+          
+          logger.info(util.format("Shady worker %s started", workerId));
+          logger.info(util.format("Listening internal address: %s:%s", workerHost, workerPort));
+          logger.info(util.format("Using server group: %s", workerServerGroup));
+          
           setInterval(() => {
             pidusage.stat(process.pid, (err, stat) => {
               shadyMessages.trigger("cluster:ping", {
-                workerId: workerId,
-                cpu: stat.cpu,
-                memory: stat.memory,
-                port: port || options['port'],
-                host: host || options['host']
+                'workerId': workerId,
+                'cpu': stat.cpu,
+                'memory': stat.memory,
+                'port': workerPort,
+                'host': workerHost,
+                'server-group': workerServerGroup
               });
             });
           }, 1000);

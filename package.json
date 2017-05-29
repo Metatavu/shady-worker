@@ -15,6 +15,7 @@
       "shady-worker"
     ],
     "consumes": [
+      "logger",
       "shady-messages"
     ]
   },
