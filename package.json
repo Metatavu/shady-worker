@@ -1,14 +1,14 @@
 {
   "name": "shady-worker",
   "description": "Shady Business worker",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "main": "plugin.js",
   "contributors": [],
   "dependencies": {
     "lodash": "^4.17.4",
     "pidusage": "1.1.4",
     "uuid4": "1.0.0",
-    "shady-messages": "../shady-messages"
+    "shady-messages": "0.2.0"
   },
   "plugin": {
     "provides": [
