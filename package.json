@@ -2,24 +2,22 @@
   "name": "shady-worker",
   "description": "Shady Business worker",
   "version": "0.0.3",
+  "main": "plugin.js",
   "contributors": [],
   "dependencies": {
-    "async": "2.0.0-rc.3",
-    "body-parser": "^1.15.0",
-    "express": "4.13.4",
-    "express-cassandra": "^0.8.1",
-    "geolib": "2.0.20",
-    "morgan": "1.7.0",
-    "pidusage": "1.0.1",
-    "pug": "^2.0.0-alpha6",
-    "sgeo": "0.0.5",
-    "shady-messages": "latest",
-    "shady-model": "latest",
-    "shady-search": "latest",
-    "underscore": "1.8.3",
+    "lodash": "^4.17.4",
+    "pidusage": "1.1.4",
     "uuid4": "1.0.0",
-    "websocket": "1.0.22",
-    "yargs": "4.6.0"
+    "shady-messages": "../shady-messages"
+  },
+  "plugin": {
+    "provides": [
+      "shady-worker"
+    ],
+    "consumes": [
+      "logger",
+      "shady-messages"
+    ]
   },
   "readmeFilename": "README.md"
 }
